@@ -1,0 +1,65 @@
+{
+  "dataset_type": "Synthetic Retail Returns Benchmark",
+  "total_records": 2000,
+  "train_records": 1600,
+  "test_records": 400,
+  "models": {
+    "return_reason_nlp": {
+      "model_name": "TF-IDF (500 max features, 1-2 ngrams) + Logistic Regression",
+      "task": "Binary Comment Semantics Classification",
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "roc_auc": 1.0
+    },
+    "return_abuse_xgboost": {
+      "model_name": "XGBoost Classifier (100 estimators, max depth 4, lr 0.08)",
+      "task": "Return Abuse Risk Prediction",
+      "features": [
+        "return_rate",
+        "wardrobe_score",
+        "wardrobe_flags",
+        "batch_defect_rate",
+        "price",
+        "days_since_delivery",
+        "photos_provided"
+      ],
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "roc_auc": 1.0
+    },
+    "resale_value_regressor": {
+      "model_name": "Gradient Boosting Regressor (100 estimators, max depth 4, lr 0.05)",
+      "task": "Continuous Resale Salvage Rate Estimation",
+      "features": [
+        "price",
+        "cost_price",
+        "days_since_delivery",
+        "photos_provided",
+        "batch_defect_rate",
+        "condition_score"
+      ],
+      "mae": 0.0208,
+      "rmse": 0.0299,
+      "r2_score": 0.9758
+    },
+    "customer_behavior_model": {
+      "type": "Deterministic Weighted Scoring Formula",
+      "algorithm": "0.60 * return_rate_velocity + 0.25 * wardrober_score + 0.15 * flags",
+      "metrics": "N/A (Deterministic Formula)"
+    },
+    "product_defect_model": {
+      "type": "Deterministic Anomaly & Likelihood Formula",
+      "algorithm": "0.50 * batch_defect_rate + 0.30 * sku_rate + keyword_boosts",
+      "metrics": "N/A (Deterministic Formula)"
+    },
+    "expected_loss_engine": {
+      "type": "Deterministic Financial Expected-Loss Payoff Matrix & Decision Optimizer",
+      "algorithm": "Pure Mathematical Accounting & Customer Friction Loss Minimization",
+      "metrics": "N/A (Deterministic Accounting Engine)"
+    }
+  }
+}
