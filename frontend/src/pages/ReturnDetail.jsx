@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../api/client';
 import RiskBadge from '../components/common/RiskBadge';
 import ActionBadge from '../components/common/ActionBadge';
@@ -19,6 +19,12 @@ import {
   Copy,
   Check,
   BarChart2,
+  Camera,
+  Upload,
+  Image as ImageIcon,
+  CheckCircle2,
+  X,
+  Sparkles,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -42,6 +48,13 @@ export default function ReturnDetail({ returnId, onBack }) {
   const [overrideDefectRate, setOverrideDefectRate] = useState('');
   const [overrideInspectionCost, setOverrideInspectionCost] = useState('15');
   const [merchantNotes, setMerchantNotes] = useState('');
+
+  // Photo Inspection State
+  const [uploadedPhoto, setUploadedPhoto] = useState(null);
+  const [photoFileName, setPhotoFileName] = useState('');
+  const [isAnalyzingPhoto, setIsAnalyzingPhoto] = useState(false);
+  const [photoInspectionDone, setPhotoInspectionDone] = useState(false);
+  const fileInputRef = useRef(null);
 
   const fetchDetail = async () => {
     setLoading(true);
@@ -88,6 +101,47 @@ export default function ReturnDetail({ returnId, onBack }) {
     navigator.clipboard.writeText(data.decision.detailed_explanation);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPhotoFileName(file.name);
+      setIsAnalyzingPhoto(true);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setUploadedPhoto(event.target.result);
+        setTimeout(() => {
+          setIsAnalyzingPhoto(false);
+          setPhotoInspectionDone(true);
+        }, 500);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleLoadSamplePhoto = () => {
+    setIsAnalyzingPhoto(true);
+    setPhotoFileName('sample_return_item.png');
+    const isApparel = data?.product?.category?.toLowerCase().includes('apparel');
+    const sampleSvg = isApparel
+      ? `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="480" height="320" viewBox="0 0 480 320"><rect width="480" height="320" fill="%231e293b" rx="12"/><rect x="110" y="30" width="260" height="240" rx="14" fill="%23334155" stroke="%233b82f6" stroke-width="2"/><path d="M170 30 L200 70 L280 70 L310 30 L370 80 L330 140 L330 255 L150 255 L150 140 L110 80 Z" fill="%23475569"/><rect x="310" y="110" width="46" height="66" rx="4" fill="%23f59e0b" stroke="%23ffffff" stroke-width="1.5"/><text x="317" y="148" fill="%23ffffff" font-size="11" font-family="sans-serif" font-weight="bold">TAG</text><rect x="180" y="160" width="120" height="70" rx="4" fill="none" stroke="%23ef4444" stroke-width="2" stroke-dasharray="5,5"/><text x="190" y="200" fill="%23ef4444" font-size="10" font-family="sans-serif" font-weight="bold">⚠️ Seam Defect Zone</text><text x="24" y="300" fill="%2394a3b8" font-size="11" font-family="sans-serif">Return Photo: ${encodeURIComponent(data?.product?.title || 'Apparel Item')}</text></svg>`
+      : `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="480" height="320" viewBox="0 0 480 320"><rect width="480" height="320" fill="%230f172a" rx="12"/><rect x="80" y="35" width="320" height="230" rx="14" fill="%231e293b" stroke="%233b82f6" stroke-width="2"/><circle cx="240" cy="135" r="52" fill="%23334155" stroke="%2360a5fa" stroke-width="2"/><circle cx="240" cy="135" r="22" fill="%230f172a"/><rect x="100" y="215" width="130" height="28" rx="4" fill="%2310b981" fill-opacity="0.2" stroke="%2310b981" stroke-width="1.5"/><text x="110" y="234" fill="%2334d399" font-size="10" font-family="monospace">SN: ${encodeURIComponent(data?.product?.batch_number || 'BATCH-9021')}</text><rect x="250" y="215" width="130" height="28" rx="4" fill="%233b82f6" fill-opacity="0.2" stroke="%233b82f6" stroke-width="1.5"/><text x="265" y="234" fill="%2360a5fa" font-size="10" font-family="sans-serif">Original Seal Intact</text><text x="24" y="300" fill="%2394a3b8" font-size="11" font-family="sans-serif">Return Photo: ${encodeURIComponent(data?.product?.title || 'Electronics Item')}</text></svg>`;
+    
+    setUploadedPhoto(sampleSvg);
+    setTimeout(() => {
+      setIsAnalyzingPhoto(false);
+      setPhotoInspectionDone(true);
+    }, 500);
+  };
+
+  const handleRemovePhoto = () => {
+    setUploadedPhoto(null);
+    setPhotoFileName('');
+    setPhotoInspectionDone(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   if (loading) {
@@ -750,6 +804,456 @@ export default function ReturnDetail({ returnId, onBack }) {
                 </RadarChart>
               </ResponsiveContainer>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 📸 Photo Inspection Section */}
+      <div
+        style={{
+          backgroundColor: 'var(--bg-card)',
+          border: '1px solid var(--border-card)',
+          borderRadius: '14px',
+          padding: '22px',
+          marginBottom: '28px',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.03)',
+        }}
+      >
+        {/* Section Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Camera size={20} color="var(--brand-primary)" />
+                <h2 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '0.02em', margin: 0 }}>
+                  📸 Photo Inspection
+                </h2>
+              </div>
+              <span
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  color: '#8B5CF6',
+                  backgroundColor: 'rgba(139, 92, 246, 0.12)',
+                  border: '1px solid rgba(139, 92, 246, 0.3)',
+                  padding: '3px 8px',
+                  borderRadius: '6px',
+                }}
+              >
+                Computer Vision Demo / Simulated Inspection
+              </span>
+            </div>
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px', margin: '4px 0 0 0' }}>
+              Automated visual artifact scanning for packaging integrity, tags, physical damage, and serial checks.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            {uploadedPhoto && photoInspectionDone && (
+              <span
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  color: '#10B981',
+                  backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                  padding: '5px 12px',
+                  borderRadius: '6px',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <CheckCircle2 size={14} /> Photo Inspection Complete
+              </span>
+            )}
+
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handlePhotoUpload}
+              accept="image/*"
+              style={{ display: 'none' }}
+            />
+
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                backgroundColor: 'var(--brand-primary)',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '8px 14px',
+                fontSize: '13px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 2px 8px rgba(59, 130, 246, 0.25)',
+              }}
+            >
+              <Upload size={15} />
+              Upload Return Photo
+            </button>
+
+            {!uploadedPhoto && (
+              <button
+                onClick={handleLoadSamplePhoto}
+                style={{
+                  backgroundColor: 'var(--bg-subtle)',
+                  color: 'var(--text-secondary)',
+                  border: '1px solid var(--border-medium)',
+                  borderRadius: '8px',
+                  padding: '8px 12px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                }}
+              >
+                <Sparkles size={14} color="#F59E0B" />
+                Load Sample Photo
+              </button>
+            )}
+
+            {uploadedPhoto && (
+              <button
+                onClick={handleRemovePhoto}
+                style={{
+                  backgroundColor: 'transparent',
+                  color: 'var(--text-muted)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '8px',
+                  padding: '8px 10px',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                <X size={14} /> Remove Photo
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Content Body: Image Display & Inspection Tags */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px', alignItems: 'start' }}>
+          
+          {/* Left: Image Display Box */}
+          <div
+            style={{
+              backgroundColor: 'var(--bg-card-secondary)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: '12px',
+              padding: '16px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: '260px',
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            {isAnalyzingPhoto ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
+                <RotateCw size={32} className="animate-spin" color="var(--brand-primary)" style={{ margin: '0 auto 12px' }} />
+                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  Processing Computer Vision Visual Pipeline...
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  Detecting item bounding boxes, defect textures, tags, and packaging integrity.
+                </div>
+              </div>
+            ) : uploadedPhoto ? (
+              <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <div style={{ position: 'relative', width: '100%', maxWidth: '440px', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-medium)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                  <img
+                    src={uploadedPhoto}
+                    alt="Uploaded Return Item"
+                    style={{
+                      width: '100%',
+                      maxHeight: '280px',
+                      objectFit: 'contain',
+                      display: 'block',
+                      backgroundColor: 'var(--bg-main)',
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: '8px',
+                      left: '8px',
+                      backgroundColor: 'rgba(15, 23, 42, 0.85)',
+                      backdropFilter: 'blur(4px)',
+                      color: '#F8FAFC',
+                      fontSize: '11px',
+                      padding: '3px 8px',
+                      borderRadius: '4px',
+                      fontFamily: 'JetBrains Mono, monospace',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                    }}
+                  >
+                    📷 {photoFileName || 'return_photo.jpg'}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', maxWidth: '440px', marginTop: '10px', fontSize: '11px', color: 'var(--text-muted)' }}>
+                  <span>Item: {data.product.title}</span>
+                  <span>Condition: {data.claimed_condition}</span>
+                </div>
+              </div>
+            ) : (
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  textAlign: 'center',
+                  padding: '36px 20px',
+                  cursor: 'pointer',
+                  width: '100%',
+                  border: '2px dashed var(--border-medium)',
+                  borderRadius: '10px',
+                  transition: 'border-color 0.2s',
+                }}
+              >
+                <div
+                  style={{
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '50%',
+                    backgroundColor: 'var(--bg-subtle)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 12px',
+                    color: 'var(--brand-primary)',
+                  }}
+                >
+                  <Camera size={24} />
+                </div>
+                <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>
+                  No Return Photo Uploaded
+                </div>
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', maxWidth: '300px', margin: '0 auto 14px' }}>
+                  Upload customer-provided return photo or warehouse intake scan to run visual AI inspection.
+                </p>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                  <span
+                    style={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: 'var(--brand-primary)',
+                      backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <Upload size={13} /> Click to browse image
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Right: AI Inspection Result Panel */}
+          <div
+            style={{
+              backgroundColor: 'var(--bg-card-secondary)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: '12px',
+              padding: '18px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              minHeight: '260px',
+            }}
+          >
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--brand-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  AI Inspection Result Panel
+                </div>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    color: uploadedPhoto ? '#10B981' : 'var(--text-muted)',
+                    backgroundColor: uploadedPhoto ? 'rgba(16, 185, 129, 0.12)' : 'var(--bg-subtle)',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                  }}
+                >
+                  {uploadedPhoto ? 'Inspection Ready' : 'Pending Photo'}
+                </span>
+              </div>
+
+              {/* Inspection Tags List */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
+                {/* Tag 1: Product Detected */}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '8px 12px',
+                    backgroundColor: 'var(--bg-card)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    <span style={{ color: uploadedPhoto ? '#10B981' : 'var(--text-muted)' }}>✓</span> Product/Item Detected
+                  </span>
+                  <span style={{ color: uploadedPhoto ? '#10B981' : 'var(--text-muted)', fontWeight: 600 }}>
+                    {uploadedPhoto ? `${data.product.title.substring(0, 26)}...` : 'Awaiting Image'}
+                  </span>
+                </div>
+
+                {/* Tag 2: Tag Present */}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '8px 12px',
+                    backgroundColor: 'var(--bg-card)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    <span style={{ color: uploadedPhoto ? (customer.serial_wardrober_score > 0.6 ? '#F59E0B' : '#10B981') : 'var(--text-muted)' }}>
+                      {uploadedPhoto ? (customer.serial_wardrober_score > 0.6 ? '⚠' : '✓') : '•'}
+                    </span>{' '}
+                    Tag Status
+                  </span>
+                  <span
+                    style={{
+                      color: uploadedPhoto ? (customer.serial_wardrober_score > 0.6 ? '#F59E0B' : '#10B981') : 'var(--text-muted)',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {uploadedPhoto ? (customer.serial_wardrober_score > 0.6 ? '⚠ Possible Missing / Detached Tag' : '✓ Tag Present & Attached') : 'Awaiting Image'}
+                  </span>
+                </div>
+
+                {/* Tag 3: Packaging Detected */}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '8px 12px',
+                    backgroundColor: 'var(--bg-card)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    <span style={{ color: uploadedPhoto ? '#10B981' : 'var(--text-muted)' }}>✓</span> Packaging Detected
+                  </span>
+                  <span style={{ color: uploadedPhoto ? '#10B981' : 'var(--text-muted)', fontWeight: 600 }}>
+                    {uploadedPhoto ? '✓ Original Packaging Present' : 'Awaiting Image'}
+                  </span>
+                </div>
+
+                {/* Tag 4: Possible Damage */}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '8px 12px',
+                    backgroundColor: 'var(--bg-card)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    <span style={{ color: uploadedPhoto ? (data.stated_reason === 'DEFECTIVE' || product.batch_defect_rate >= 0.06 ? '#EF4444' : '#10B981') : 'var(--text-muted)' }}>
+                      {uploadedPhoto ? (data.stated_reason === 'DEFECTIVE' || product.batch_defect_rate >= 0.06 ? '⚠' : '✓') : '•'}
+                    </span>{' '}
+                    Physical Damage Check
+                  </span>
+                  <span
+                    style={{
+                      color: uploadedPhoto ? (data.stated_reason === 'DEFECTIVE' || product.batch_defect_rate >= 0.06 ? '#EF4444' : '#10B981') : 'var(--text-muted)',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {uploadedPhoto ? (data.stated_reason === 'DEFECTIVE' || product.batch_defect_rate >= 0.06 ? '⚠ Possible Damage / Defect' : '✓ No Structural Damage') : 'Awaiting Image'}
+                  </span>
+                </div>
+
+                {/* Tag 5: Possible Stain */}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '8px 12px',
+                    backgroundColor: 'var(--bg-card)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    <span style={{ color: uploadedPhoto ? (customer.wardrobing_flag_count > 0 ? '#F59E0B' : '#10B981') : 'var(--text-muted)' }}>
+                      {uploadedPhoto ? (customer.wardrobing_flag_count > 0 ? '⚠' : '✓') : '•'}
+                    </span>{' '}
+                    Surface / Stain Check
+                  </span>
+                  <span
+                    style={{
+                      color: uploadedPhoto ? (customer.wardrobing_flag_count > 0 ? '#F59E0B' : '#10B981') : 'var(--text-muted)',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {uploadedPhoto ? (customer.wardrobing_flag_count > 0 ? '⚠ Possible Wear / Stain Flaw' : '✓ Clean Exterior') : 'Awaiting Image'}
+                  </span>
+                </div>
+
+                {/* Tag 6: Serial Number Visible */}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '8px 12px',
+                    backgroundColor: 'var(--bg-card)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    <span style={{ color: uploadedPhoto ? '#10B981' : 'var(--text-muted)' }}>✓</span> Serial Number Visible
+                  </span>
+                  <span style={{ color: uploadedPhoto ? '#10B981' : 'var(--text-muted)', fontWeight: 600, fontFamily: 'JetBrains Mono, monospace' }}>
+                    {uploadedPhoto ? (product.batch_number ? `✓ ${product.batch_number}` : '✓ Serial Match') : 'Awaiting Image'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '11px', color: 'var(--text-muted)', borderTop: '1px solid var(--border-subtle)', paddingTop: '10px', margin: 0, fontStyle: 'italic' }}>
+              {uploadedPhoto
+                ? `Visual inspection synthesized with stated reason (${data.stated_reason}) and claimed condition (${data.claimed_condition}).`
+                : 'Upload or load a return photo above to view simulated visual inspection artifacts.'}
+            </p>
           </div>
         </div>
       </div>
