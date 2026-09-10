@@ -8,8 +8,9 @@ from sqlalchemy import desc
 
 from app.api.deps import get_db
 from app.db.models import ReturnRequest, Customer, Product, Order, Decision, AuditLog
-from app.schemas.return_request import ReturnRequestListItem, ReturnRequestCreate
+from app.schemas.return_request import ReturnRequestListItem, ReturnRequestCreate, ReturnChatRequest, ReturnChatResponse
 from app.agent.investigator import investigator_agent
+from app.agent.explainer import DecisionExplainer
 
 router = APIRouter()
 
@@ -307,3 +308,31 @@ def get_return_detail(return_id: int, db: Session = Depends(get_db)):
             for log in audit_logs
         ]
     }
+
+@router.post("/{return_id}/chat", response_model=ReturnChatResponse)
+def chat_with_returnwise(
+    return_id: int,
+    payload: ReturnChatRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    AI Merchant Assistant Q&A endpoint.
+    Answers any merchant query using actual ground-truth data, ML agent outputs, and loss calculations for this specific return.
+    """
+    return_data = get_return_detail(return_id=return_id, db=db)
+    
+    if not payload.messages:
+        raise HTTPException(status_code=400, detail="No chat messages provided")
+    
+    latest_msg = payload.messages[-1].content
+    history = [{"role": m.role, "content": m.content} for m in payload.messages[:-1]]
+    
+    response = DecisionExplainer.answer_merchant_query(
+        query=latest_msg,
+        history=history,
+        return_data=return_data,
+        photo_summary=payload.photo_summary
+    )
+    
+    return response
+

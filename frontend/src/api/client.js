@@ -43,6 +43,13 @@ export const api = {
 
   getReturnDetail: (id) => fetchJson(`${API_BASE}/returns/${id}`),
 
+  askReturnWise: (id, payload) =>
+    fetchJson(`${API_BASE}/returns/${id}/chat`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+
   // Investigation & Rerun
   triggerInvestigation: (id) =>
     fetchJson(`${API_BASE}/investigate/${id}`, { method: 'POST' }),

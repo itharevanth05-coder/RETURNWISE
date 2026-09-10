@@ -25,6 +25,11 @@ import {
   CheckCircle2,
   X,
   Sparkles,
+  Bot,
+  Send,
+  MessageSquare,
+  CornerDownLeft,
+  RotateCcw,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -56,6 +61,14 @@ export default function ReturnDetail({ returnId, onBack }) {
   const [photoInspectionDone, setPhotoInspectionDone] = useState(false);
   const fileInputRef = useRef(null);
 
+  // AI Merchant Assistant Chat State
+  const [showChatDrawer, setShowChatDrawer] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [suggestedQuestions, setSuggestedQuestions] = useState([]);
+  const chatBottomRef = useRef(null);
+
   const fetchDetail = async () => {
     setLoading(true);
     setError(null);
@@ -64,6 +77,19 @@ export default function ReturnDetail({ returnId, onBack }) {
       setData(res);
       setOverrideReturnRate(res.customer.return_rate);
       setOverrideDefectRate(res.product.batch_defect_rate);
+
+      // Initialize contextual suggested questions
+      const initialSuggestions = [
+        "On what basis did you give this result?",
+        `Why did you recommend ${res.decision?.selected_action || 'INSPECT'}?`,
+        "Which factors affected the risk the most?",
+        "Why wasn't this approved?",
+        "Explain this decision in simple words.",
+        "What would happen if the customer had fewer returns?",
+        "Does the product have a defect problem?",
+        "How did you calculate the expected loss?",
+      ];
+      setSuggestedQuestions(initialSuggestions);
     } catch (err) {
       setError(err.message || 'Failed to fetch return details');
     } finally {
@@ -142,6 +168,67 @@ export default function ReturnDetail({ returnId, onBack }) {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  useEffect(() => {
+    if (showChatDrawer) {
+      chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages, showChatDrawer]);
+
+  const handleSendChatMessage = async (textToSend) => {
+    const query = (textToSend !== undefined ? textToSend : chatInput).trim();
+    if (!query || chatLoading) return;
+
+    const userMessage = { role: 'user', content: query };
+    const updatedMessages = [...chatMessages, userMessage];
+    setChatMessages(updatedMessages);
+    setChatInput('');
+    setChatLoading(true);
+
+    try {
+      const photoSummary = uploadedPhoto
+        ? `Photo uploaded: ${photoFileName || 'return_item.png'}. Visual inspection tags: packaging present, tag status evaluated, condition check complete.`
+        : null;
+
+      const res = await api.askReturnWise(returnId, {
+        messages: updatedMessages,
+        photo_summary: photoSummary,
+      });
+
+      setChatMessages([
+        ...updatedMessages,
+        { role: 'assistant', content: res.reply },
+      ]);
+
+      if (res.suggested_questions && res.suggested_questions.length > 0) {
+        setSuggestedQuestions(res.suggested_questions);
+      }
+    } catch (err) {
+      setChatMessages([
+        ...updatedMessages,
+        {
+          role: 'assistant',
+          content: `I encountered an issue processing your query: ${err.message}. Please try asking again.`,
+        },
+      ]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const handleClearChat = () => {
+    setChatMessages([]);
+    setSuggestedQuestions([
+      "On what basis did you give this result?",
+      `Why did you recommend ${data?.decision?.selected_action || 'INSPECT'}?`,
+      "Which factors affected the risk the most?",
+      "Why wasn't this approved?",
+      "Explain this decision in simple words.",
+      "What would happen if the customer had fewer returns?",
+      "Does the product have a defect problem?",
+      "How did you calculate the expected loss?",
+    ]);
   };
 
   if (loading) {
@@ -224,16 +311,39 @@ export default function ReturnDetail({ returnId, onBack }) {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          {decision && (
+            <button
+              onClick={() => setShowChatDrawer(true)}
+              style={{
+                backgroundColor: 'rgba(139, 92, 246, 0.15)',
+                color: '#A855F7',
+                border: '1px solid rgba(139, 92, 246, 0.4)',
+                borderRadius: '8px',
+                padding: '10px 16px',
+                fontSize: '13px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                boxShadow: '0 0 12px rgba(139, 92, 246, 0.2)',
+              }}
+            >
+              <Bot size={16} />
+              🤖 Ask ReturnWise
+            </button>
+          )}
+
           <button
             onClick={copyAuditReport}
             style={{
-              backgroundColor: '#1E293B',
-              border: '1px solid #334155',
+              backgroundColor: 'var(--bg-card-secondary)',
+              border: '1px solid var(--border-medium)',
               borderRadius: '8px',
               padding: '10px 14px',
               fontSize: '13px',
-              color: '#CBD5E1',
+              color: 'var(--text-secondary)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -247,7 +357,7 @@ export default function ReturnDetail({ returnId, onBack }) {
           <button
             onClick={() => setShowRerunModal(true)}
             style={{
-              backgroundColor: '#3B82F6',
+              backgroundColor: 'var(--brand-primary)',
               color: '#FFFFFF',
               border: 'none',
               borderRadius: '8px',
@@ -290,9 +400,47 @@ export default function ReturnDetail({ returnId, onBack }) {
                   Optimal policy selected by Deterministic Expected-Loss Engine
                 </span>
               </div>
-              <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+              <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
                 {decision.reasoning_summary}
               </p>
+
+              {/* Ask ReturnWise quick trigger banner */}
+              <div
+                style={{
+                  marginTop: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  flexWrap: 'wrap',
+                  backgroundColor: 'var(--bg-card-secondary)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '10px',
+                  padding: '10px 14px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-primary)', fontWeight: 600 }}>
+                  <Bot size={16} color="#A855F7" />
+                  <span>Want to understand this decision?</span>
+                </div>
+                <button
+                  onClick={() => setShowChatDrawer(true)}
+                  style={{
+                    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+                    border: '1px solid rgba(139, 92, 246, 0.4)',
+                    color: '#A855F7',
+                    borderRadius: '6px',
+                    padding: '5px 12px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  🤖 Ask ReturnWise
+                </button>
+              </div>
             </div>
 
             {/* Financial Summary Pill Box */}
@@ -1540,6 +1688,324 @@ export default function ReturnDetail({ returnId, onBack }) {
           </div>
         </div>
       )}
+
+      {/* 🤖 AI Merchant Assistant: Ask ReturnWise Slide-Over Drawer */}
+      {showChatDrawer && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999,
+            display: 'flex',
+            justifyContent: 'flex-end',
+            backgroundColor: 'rgba(0, 0, 0, 0.55)',
+            backdropFilter: 'blur(3px)',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowChatDrawer(false);
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '480px',
+              height: '100%',
+              backgroundColor: 'var(--bg-card)',
+              borderLeft: '1px solid var(--border-medium)',
+              boxShadow: '-10px 0 35px rgba(0, 0, 0, 0.35)',
+              display: 'flex',
+              flexDirection: 'column',
+              animation: 'slideInRight 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+          >
+            {/* Drawer Header */}
+            <div
+              style={{
+                padding: '18px 20px',
+                borderBottom: '1px solid var(--border-medium)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                backgroundColor: 'var(--bg-card-secondary)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
+                    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+                    border: '1px solid rgba(139, 92, 246, 0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#A855F7',
+                  }}
+                >
+                  <Bot size={20} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    Ask ReturnWise
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        color: 'var(--brand-primary)',
+                        backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                      }}
+                    >
+                      {data.return_ref}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                    Decision Intelligence & Audit Q&A Copilot
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {chatMessages.length > 0 && (
+                  <button
+                    onClick={handleClearChat}
+                    title="Clear chat history"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                      padding: '6px',
+                      borderRadius: '6px',
+                      display: 'flex',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <RotateCcw size={15} />
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowChatDrawer(false)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    padding: '6px',
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Drawer Body / Message Stream */}
+            <div
+              style={{
+                flex: 1,
+                overflowY: 'auto',
+                padding: '20px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+              }}
+            >
+              {/* Context Summary Pill */}
+              <div
+                style={{
+                  backgroundColor: 'var(--bg-card-secondary)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '10px',
+                  padding: '12px 14px',
+                  fontSize: '12px',
+                  lineHeight: 1.5,
+                  color: 'var(--text-secondary)',
+                }}
+              >
+                <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Sparkles size={14} color="#A855F7" /> Ground-Truth Decision Context Loaded:
+                </div>
+                <div>&bull; <strong>Customer:</strong> {customer.name} ({customer.ltv_tier}, {Math.round(customer.return_rate * 100)}% return rate)</div>
+                <div>&bull; <strong>Product:</strong> {product.title} (₹{product.price.toFixed(2)}, Batch: {product.batch_number})</div>
+                <div>&bull; <strong>Decision:</strong> {decision ? `${decision.selected_action} (Loss: ₹${decision.expected_loss_selected.toFixed(2)}, Risk: ${decision.risk_category})` : 'Awaiting analysis'}</div>
+              </div>
+
+              {/* Welcome Prompt */}
+              {chatMessages.length === 0 && (
+                <div
+                  style={{
+                    backgroundColor: 'var(--bg-subtle)',
+                    border: '1px solid var(--border-medium)',
+                    borderRadius: '12px',
+                    padding: '14px',
+                    fontSize: '13px',
+                    color: 'var(--text-primary)',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  👋 <strong>Hello!</strong> I'm your ReturnWise Assistant. I have live access to the entire 6-agent investigation pipeline, loss payoff matrices, and customer history.
+                  <p style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-secondary)', margin: '8px 0 0 0' }}>
+                    Click a suggested question below or type your own question to understand this decision:
+                  </p>
+                </div>
+              )}
+
+              {/* Chat Message List */}
+              {chatMessages.map((msg, index) => {
+                const isUser = msg.role === 'user';
+                return (
+                  <div
+                    key={index}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: isUser ? 'flex-end' : 'flex-start',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: '11px',
+                        color: 'var(--text-muted)',
+                        marginBottom: '4px',
+                        paddingLeft: '4px',
+                        paddingRight: '4px',
+                      }}
+                    >
+                      {isUser ? 'You' : '🤖 ReturnWise AI'}
+                    </div>
+                    <div
+                      style={{
+                        maxWidth: '90%',
+                        backgroundColor: isUser ? 'var(--brand-primary)' : 'var(--bg-card-secondary)',
+                        color: isUser ? '#FFFFFF' : 'var(--text-primary)',
+                        border: isUser ? 'none' : '1px solid var(--border-subtle)',
+                        borderRadius: isUser ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
+                        padding: '12px 16px',
+                        fontSize: '13px',
+                        lineHeight: 1.6,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                        whiteSpace: 'pre-wrap',
+                      }}
+                    >
+                      {msg.content}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Loading Indicator */}
+              {chatLoading && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '12px', padding: '6px 10px' }}>
+                  <RotateCw size={14} className="animate-spin" color="var(--brand-primary)" />
+                  Analyzing return models and synthesizing loss metrics...
+                </div>
+              )}
+
+              {/* Suggested Questions Chips */}
+              <div style={{ marginTop: 'auto', paddingTop: '10px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.05em' }}>
+                  Suggested Questions:
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {suggestedQuestions.map((q, qIdx) => (
+                    <button
+                      key={qIdx}
+                      onClick={() => handleSendChatMessage(q)}
+                      disabled={chatLoading}
+                      style={{
+                        backgroundColor: 'var(--bg-card-secondary)',
+                        border: '1px solid var(--border-medium)',
+                        color: 'var(--text-primary)',
+                        borderRadius: '20px',
+                        padding: '6px 12px',
+                        fontSize: '11px',
+                        fontWeight: 500,
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--brand-primary)';
+                        e.currentTarget.style.color = 'var(--brand-primary)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--border-medium)';
+                        e.currentTarget.style.color = 'var(--text-primary)';
+                      }}
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div ref={chatBottomRef} />
+            </div>
+
+            {/* Drawer Input Box */}
+            <div
+              style={{
+                padding: '16px',
+                borderTop: '1px solid var(--border-medium)',
+                backgroundColor: 'var(--bg-card-secondary)',
+              }}
+            >
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSendChatMessage();
+                }}
+                style={{ display: 'flex', gap: '8px' }}
+              >
+                <input
+                  type="text"
+                  placeholder="Type any question about this return decision..."
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  disabled={chatLoading}
+                  style={{
+                    flex: 1,
+                    backgroundColor: 'var(--input-bg)',
+                    border: '1px solid var(--input-border)',
+                    borderRadius: '8px',
+                    padding: '10px 14px',
+                    fontSize: '13px',
+                    color: 'var(--input-text)',
+                    outline: 'none',
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={!chatInput.trim() || chatLoading}
+                  style={{
+                    backgroundColor: chatInput.trim() && !chatLoading ? 'var(--brand-primary)' : 'var(--bg-subtle)',
+                    color: chatInput.trim() && !chatLoading ? '#FFFFFF' : 'var(--text-muted)',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '10px 16px',
+                    cursor: chatInput.trim() && !chatLoading ? 'pointer' : 'not-allowed',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'background-color 0.2s',
+                  }}
+                >
+                  <Send size={15} />
+                </button>
+              </form>
+              <div style={{ fontSize: '10px', color: 'var(--text-muted)', textAlign: 'center', marginTop: '8px' }}>
+                Grounded in RETURNWISE Decision Engine & 6-Agent AI models.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

@@ -88,3 +88,16 @@ class ReturnRequestListItem(BaseModel):
 
 class ReturnRequestDetail(ReturnRequestListItem):
     pass
+
+class ReturnChatMessage(BaseModel):
+    role: str  # "user" or "assistant"
+    content: str
+
+class ReturnChatRequest(BaseModel):
+    messages: List[ReturnChatMessage]
+    photo_summary: Optional[str] = None
+
+class ReturnChatResponse(BaseModel):
+    reply: str
+    suggested_questions: List[str]
+
