@@ -154,3 +154,156 @@ code, pre, .font-mono {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+
+/* ========================================================
+   AWARD-WINNING HACKATHON ANIMATIONS & SCI-FI TELEMETRY HUD
+   ======================================================== */
+
+@keyframes laserSweep {
+  0% {
+    top: 2%;
+    opacity: 0.9;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    top: 96%;
+    opacity: 0.9;
+  }
+}
+
+@keyframes radarRotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 18px rgba(59, 130, 246, 0.2);
+    border-color: rgba(59, 130, 246, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 32px rgba(59, 130, 246, 0.45), 0 0 15px rgba(139, 92, 246, 0.3);
+    border-color: rgba(59, 130, 246, 0.7);
+  }
+}
+
+@keyframes pulseGlowGreen {
+  0%, 100% {
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.2);
+    border-color: rgba(16, 185, 129, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 34px rgba(16, 185, 129, 0.45);
+    border-color: rgba(16, 185, 129, 0.75);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes floatBadge {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes streamLine {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes scanTarget {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+}
+
+@keyframes progressPulse {
+  0%, 100% {
+    opacity: 0.75;
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.8));
+  }
+}
+
+.laser-beam {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0) 0%, #3B82F6 20%, #60A5FA 50%, #A855F7 80%, rgba(168, 85, 247, 0) 100%);
+  box-shadow: 0 0 16px #3B82F6, 0 0 8px #60A5FA;
+  animation: laserSweep 2.2s ease-in-out infinite alternate;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.laser-grid-overlay {
+  background-image: linear-gradient(rgba(59, 130, 246, 0.08) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(59, 130, 246, 0.08) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+.pulse-card-hero {
+  animation: pulseGlow 4s infinite ease-in-out;
+}
+
+.pulse-green-highlight {
+  animation: pulseGlowGreen 3.2s infinite ease-in-out;
+}
+
+.animate-floating {
+  animation: floatBadge 3s ease-in-out infinite;
+}
+
+.animate-scan-target {
+  animation: scanTarget 1.8s ease-in-out infinite;
+}
+
+.agent-scan-pulse {
+  animation: progressPulse 1.2s ease-in-out infinite;
+}
+
+.stream-border {
+  background: linear-gradient(90deg, #3B82F6, #8B5CF6, #EC4899, #3B82F6);
+  background-size: 300% 300%;
+  animation: streamLine 4s ease infinite;
+}
+
+.card-interactive {
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.22s ease;
+}
+.card-interactive:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+  border-color: var(--brand-primary) !important;
+}
+
