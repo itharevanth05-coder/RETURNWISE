@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ThemeProvider } from './context/ThemeContext';
 import Navbar from './components/layout/Navbar';
+import BackgroundCanvas from './components/common/BackgroundCanvas';
 import ReturnsQueue from './pages/ReturnsQueue';
 import ReturnDetail from './pages/ReturnDetail';
 import AnalyticsDashboard from './pages/AnalyticsDashboard';
@@ -25,10 +26,11 @@ function AppContent() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-main)', color: 'var(--text-primary)', transition: 'background-color 0.2s ease, color 0.2s ease' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-main)', color: 'var(--text-primary)', position: 'relative', overflowX: 'hidden', transition: 'background-color 0.2s ease, color 0.2s ease' }}>
+      <BackgroundCanvas />
       <Navbar activeTab={activeTab} onSelectTab={handleSelectTab} />
 
-      <main>
+      <main style={{ position: 'relative', zIndex: 1 }}>
         {selectedReturnId ? (
           <ReturnDetail returnId={selectedReturnId} onBack={handleBackToQueue} />
         ) : activeTab === 'queue' ? (

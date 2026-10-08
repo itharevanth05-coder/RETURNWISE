@@ -9,7 +9,9 @@ export default function Navbar({ activeTab, onSelectTab }) {
     <header
       style={{
         height: '64px',
-        backgroundColor: 'var(--bg-header)',
+        backgroundColor: isDark ? 'rgba(15, 23, 42, 0.82)' : 'rgba(255, 255, 255, 0.85)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
         borderBottom: '1px solid var(--border-subtle)',
         display: 'flex',
         alignItems: 'center',
